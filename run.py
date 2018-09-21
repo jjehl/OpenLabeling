@@ -2,6 +2,7 @@ import argparse
 import textwrap
 import glob
 import os
+import shutil
 
 import numpy as np
 import cv2
@@ -18,8 +19,8 @@ cv2.destroyAllWindows()
 parser = argparse.ArgumentParser(description='YOLO v2 Bounding Box Tool')
 parser.add_argument('--format', default='yolo', type=str, choices=['yolo', 'voc'], help="Bounding box format")
 parser.add_argument('--sort', action='store_true', help="If true, shows images in order.")
-parser.add_argument('--cross-thickness', default='1', type=int, help="Cross thickness")
-parser.add_argument('--bbox-thickness', default='1', type=int, help="Bounding box thickness")
+parser.add_argument('--cross-thickness', default='2', type=int, help="Cross thickness")
+parser.add_argument('--bbox-thickness', default='2', type=int, help="Bounding box thickness")
 args = parser.parse_args()
 
 class_index = 0
@@ -266,6 +267,11 @@ def mouse_listener(event, x, y, flags, param):
                     point_2 = (x, y)
 
 
+    elif event == cv2.EVENT_RBUTTONDOWN:
+        set_selected_bbox()
+        if is_bbox_selected:
+            delete_selected_bbox()
+
 def is_mouse_inside_points(x1, y1, x2, y2):
     return mouse_x > x1 and mouse_x < x2 and mouse_y > y1 and mouse_y < y2
 
@@ -297,6 +303,7 @@ def draw_info_bb_selected(tmp_img):
     return tmp_img
 
 
+    
 # load img list
 img_dir = "images/"
 image_list = glob.glob(img_dir +'*.jpg')
@@ -396,20 +403,20 @@ while True:
     pressed_key = cv2.waitKey(50)
 
     """ Key Listeners START """
-    if pressed_key == ord('a') or pressed_key == ord('d'):
+    if pressed_key == ord('w') or pressed_key == ord(' '):
         # show previous image key listener
-        if pressed_key == ord('a'):
+        if pressed_key == ord('w'):
             img_index = decrease_index(img_index, last_img_index)
         # show next image key listener
-        elif pressed_key == ord('d'):
+        elif pressed_key == ord(' '):
             img_index = increase_index(img_index, last_img_index)
         cv2.setTrackbarPos(TRACKBAR_IMG, WINDOW_NAME, img_index)
-    elif pressed_key == ord('s') or pressed_key == ord('w'):
+    elif pressed_key == ord('a') or pressed_key == ord('z'):
         # change down current class key listener
-        if pressed_key == ord('s'):
+        if pressed_key == ord('a'):
             class_index = decrease_index(class_index, last_class_index)
         # change up current class key listener
-        elif pressed_key == ord('w'):
+        elif pressed_key == ord('z'):
             class_index = increase_index(class_index, last_class_index)
         color = class_rgb[class_index].tolist()
         draw_line(tmp_img, mouse_x, mouse_y, height, width, color)
@@ -444,6 +451,18 @@ while True:
             else:
                 print("Edges turned ON!")
             
+    elif pressed_key == ord('d'):
+        img_new_path = os.path.join('suppr',img_path)
+        txt_new_path = os.path.join('suppr',txt_path)
+        #os.rename(img_path,img_new_path)
+        shutil.move(img_path,img_new_path)
+        shutil.move(txt_path,txt_new_path)
+        del(image_list[img_index])
+        last_img_index = len(image_list) - 1
+        img_index = decrease_index(img_index, last_img_index)
+        cv2.setTrackbarPos(TRACKBAR_IMG, WINDOW_NAME, img_index)
+        
+        
     # quit key listener
     elif pressed_key == ord('q'):
         break

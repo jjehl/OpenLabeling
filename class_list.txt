@@ -1,3 +1,1 @@
-human
-billiard ball
-donut
+plate
