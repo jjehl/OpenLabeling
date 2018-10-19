@@ -3,6 +3,7 @@ import textwrap
 import glob
 import os
 import shutil
+import string
 
 import numpy as np
 import cv2
@@ -19,15 +20,18 @@ cv2.destroyAllWindows()
 parser = argparse.ArgumentParser(description='YOLO v2 Bounding Box Tool')
 parser.add_argument('--format', default='yolo', type=str, choices=['yolo', 'voc'], help="Bounding box format")
 parser.add_argument('--sort', action='store_true', help="If true, shows images in order.")
-parser.add_argument('--cross-thickness', default='2', type=int, help="Cross thickness")
-parser.add_argument('--bbox-thickness', default='2', type=int, help="Bounding box thickness")
+parser.add_argument('--cross-thickness', default='1', type=int, help="Cross thickness")
+parser.add_argument('--bbox-thickness', default='1', type=int, help="Bounding box thickness")
 args = parser.parse_args()
 
+bordersize=40
 class_index = 0
 img_index = 0
 img = None
 img_objects = []
 bb_dir = "bbox_txt/"
+# possible key pressed :
+kp = [ord(i) for i in string.ascii_uppercase+string.digits]
 
 # selected bounding box
 prev_was_double_click = False
@@ -97,8 +101,12 @@ def draw_line(img, x, y, height, width, color):
 def yolo_format(class_index, point_1, point_2, width, height):
     # YOLO wants everything normalized
     # Order: class x_center y_center x_width y_height
-    x_center = (point_1[0] + point_2[0]) / float(2.0 * width)
-    y_center = (point_1[1] + point_2[1]) / float(2.0 * height)
+    x1, y1 = point_1[0]-bordersize,point_2[0]-bordersize
+    x2, y2 = point_1[1]-bordersize,point_2[1]-bordersize
+    width = width-2*bordersize
+    height =height-2*bordersize
+    x_center = (x1 + y1) / float(2.0 * width)
+    y_center = (x2 + y2) / float(2.0 * height)
     x_width = float(abs(point_2[0] - point_1[0])) / width
     y_height = float(abs(point_2[1] - point_1[1])) / height
     return str(class_index) + " " + str(x_center) \
@@ -164,12 +172,9 @@ def draw_bboxes_from_file(tmp_img, txt_path, width, height):
                 class_index, x_center, y_center, x_width, y_height = map(float, values_str)
                 class_index = int(class_index)
                 # convert yolo to points
-                x1, y1, x2, y2 = yolo_to_x_y(x_center, y_center, x_width, y_height, width, height)
-                if x_center == int(x_center):
-                    error = ("You selected the 'yolo' format but your labels "
-                             "seem to be in a different format. Consider "
-                             "removing your old label files.")
-                    raise Exception(textwrap.fill(error, 70))
+                x1, y1, x2, y2 = yolo_to_x_y(x_center, y_center, x_width, y_height, width-2*bordersize, height-2*bordersize)
+                
+
             elif args.format == 'voc':
                 try:
                     x1, y1, x2, y2, class_index = map(int, values_str)
@@ -179,6 +184,7 @@ def draw_bboxes_from_file(tmp_img, txt_path, width, height):
                              "removing your old label files.")
                     raise Exception(textwrap.fill(error, 70))
                 x1, y1, x2, y2 = x1-1, y1-1, x2-1, y2-1
+            x1, y1, x2, y2 = x1+bordersize, y1+bordersize, x2+bordersize, y2+bordersize
             img_objects.append([class_index, x1, y1, x2, y2])
             color = class_rgb[class_index].tolist()
             cv2.rectangle(tmp_img, (x1, y1), (x2, y2), color, thickness=args.bbox_thickness)
@@ -261,7 +267,7 @@ def mouse_listener(event, x, y, flags, param):
                     point_1 = (x, y)
             else:
                 # minimal size for bounding box to avoid errors
-                threshold = 20
+                threshold = 5
                 if abs(x - point_1[0]) > threshold or abs(y - point_1[1]) > threshold:
                     # second click
                     point_2 = (x, y)
@@ -299,7 +305,7 @@ def draw_info_bb_selected(tmp_img):
         ind, x1, y1, x2, y2 = obj
         if idx == selected_bbox:
             x1_c, y1_c, x2_c, y2_c = get_close_icon(x1, y1, x2, y2)
-            draw_close_icon(tmp_img, x1_c, y1_c, x2_c, y2_c)
+            #draw_close_icon(tmp_img, x1_c, y1_c, x2_c, y2_c)
     return tmp_img
 
 
@@ -361,10 +367,15 @@ if not os.path.exists(bb_dir):
     os.makedirs(bb_dir)
 
 color = class_rgb[class_index].tolist()
+
 # loop
 while True:
     # clone the img
-    tmp_img = img.copy()
+    
+    tmp_img=cv2.copyMakeBorder(img, top=bordersize, bottom=bordersize,
+                                left=bordersize, right=bordersize,
+                                borderType= cv2.BORDER_CONSTANT, value=[200,200,200] )
+    #tmp_img=img.copy()
     height, width = tmp_img.shape[:2]
     if edges_on == True:
         # draw edges
@@ -375,9 +386,7 @@ while True:
     txt_path = get_txt_path(img_path)
     # draw already done bounding boxes
     tmp_img = draw_bboxes_from_file(tmp_img, txt_path, width, height)
-    # if bounding box is selected add extra info
-    if is_bbox_selected:
-        tmp_img = draw_info_bb_selected(tmp_img)
+    
     # if first click
     if point_1[0] is not -1:
         color = class_rgb[class_index].tolist()
@@ -400,30 +409,30 @@ while True:
                                     "\nPress [w] or [s] to change.", 120)
 
     cv2.imshow(WINDOW_NAME, tmp_img)
-    pressed_key = cv2.waitKey(50)
+    pressed_key = cv2.waitKey(25)
 
     """ Key Listeners START """
-    if pressed_key == ord('w') or pressed_key == ord(' '):
+    if pressed_key == 2424832 or pressed_key == 2555904:
         # show previous image key listener
-        if pressed_key == ord('w'):
+        if pressed_key == 2424832:
             img_index = decrease_index(img_index, last_img_index)
         # show next image key listener
-        elif pressed_key == ord(' '):
+        elif pressed_key == 2555904:
             img_index = increase_index(img_index, last_img_index)
         cv2.setTrackbarPos(TRACKBAR_IMG, WINDOW_NAME, img_index)
-    elif pressed_key == ord('a') or pressed_key == ord('z'):
+    elif pressed_key == 2621440 or pressed_key == 2490368:
         # change down current class key listener
-        if pressed_key == ord('a'):
+        if pressed_key == 2621440:
             class_index = decrease_index(class_index, last_class_index)
         # change up current class key listener
-        elif pressed_key == ord('z'):
+        elif pressed_key == 2490368:
             class_index = increase_index(class_index, last_class_index)
         color = class_rgb[class_index].tolist()
         draw_line(tmp_img, mouse_x, mouse_y, height, width, color)
         cv2.setTrackbarPos(TRACKBAR_CLASS, WINDOW_NAME, class_index)
 
     # help key listener
-    elif pressed_key == ord('h'):
+    elif pressed_key == ord('!'):
         if WITH_QT:
             cv2.displayOverlay(WINDOW_NAME, "[e] to show edges;\n"
                                 "[q] to quit;\n"
@@ -437,7 +446,7 @@ while True:
                     "[w] or [s] to change Class.\n"
                     "%s" % img_path)
     # show edges key listener
-    elif pressed_key == ord('e'):
+    elif pressed_key == ord(':'):
         if edges_on == True:
             edges_on = False
             if WITH_QT:
@@ -451,7 +460,7 @@ while True:
             else:
                 print("Edges turned ON!")
             
-    elif pressed_key == ord('d'):
+    elif pressed_key == 3014656:
         img_new_path = os.path.join('suppr',img_path)
         txt_new_path = os.path.join('suppr',txt_path)
         #os.rename(img_path,img_new_path)
@@ -462,9 +471,14 @@ while True:
         img_index = decrease_index(img_index, last_img_index)
         cv2.setTrackbarPos(TRACKBAR_IMG, WINDOW_NAME, img_index)
         
+    elif pressed_key in kp:
+        change_class_index(class_list.index(chr(pressed_key)))
+        color = class_rgb[class_index].tolist()
+        draw_line(tmp_img, mouse_x, mouse_y, height, width, color)
+        cv2.setTrackbarPos(TRACKBAR_CLASS, WINDOW_NAME, class_index)
         
     # quit key listener
-    elif pressed_key == ord('q'):
+    elif pressed_key == 27:
         break
     """ Key Listeners END """
 
