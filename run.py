@@ -22,6 +22,7 @@ parser.add_argument('--format', default='yolo', type=str, choices=['yolo', 'voc'
 parser.add_argument('--sort', action='store_true', help="If true, shows images in order.")
 parser.add_argument('--cross-thickness', default='1', type=int, help="Cross thickness")
 parser.add_argument('--bbox-thickness', default='1', type=int, help="Bounding box thickness")
+parser.add_argument('--dir', default='./', type=str, help="directory for datas")
 args = parser.parse_args()
 
 bordersize=40
@@ -29,7 +30,8 @@ class_index = 0
 img_index = 0
 img = None
 img_objects = []
-bb_dir = "bbox_txt/"
+bb_dir =  args.dir+"bbox_txt/"
+img_dir = args.dir+"images/"
 # possible key pressed :
 kp = [ord(i) for i in string.ascii_uppercase+string.digits]
 
@@ -315,7 +317,7 @@ def draw_info_bb_selected(tmp_img):
 
     
 # load img list
-img_dir = "images/"
+
 image_list = glob.glob(img_dir +'*.jpg')
 image_list.extend(glob.glob(img_dir + '*.jpeg'))
 #print(image_list)
@@ -326,7 +328,7 @@ if not args.sort:
 last_img_index = len(image_list) - 1
 
 # load class list
-with open('class_list.txt') as f:
+with open(args.dir+'class_list.txt') as f:
     class_list = f.read().splitlines()
 #print(class_list)
 last_class_index = len(class_list) - 1
